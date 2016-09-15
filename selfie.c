@@ -886,7 +886,7 @@ void selfie_map(int ID, int page, int frame);
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
 int debug_create = 0;
-int debug_switch = 0;
+int debug_switch = 1;
 int debug_status = 0;
 int debug_delete = 0;
 int debug_map    = 0;
@@ -6308,6 +6308,13 @@ void runUntilExit() {
 
       // TODO: scheduler should go here
       toID = fromID;
+
+      if (exceptionNumber == EXCEPTION_INTERRUPT) {
+        if (getNextContext(fromContext) != (int*) 0)
+          toID = getID(getNextContext(fromContext));
+        else
+          toID = getID(readyContexts);
+      }
     }
   }
 }
@@ -6779,6 +6786,21 @@ void boot(int argc, int* argv) {
   resetMicrokernel();
 
   // create initial context on microkernel boot level
+  initID = selfie_create();
+
+  // create duplicate of the initial context on this boot level
+  readyContexts = createContext(initID, selfie_ID(), readyContexts);
+
+  initContext = readyContexts;
+
+  up_loadBinary(getPT(initContext));
+
+  up_loadArguments(getPT(initContext), argc, argv);
+
+  // set up page table of initial context
+  down_mapPageTable(initContext);
+
+  // create second initial context on microkernel boot level
   initID = selfie_create();
 
   // create duplicate of the initial context on this boot level
